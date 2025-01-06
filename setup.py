@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="botpgsql",
-    version="0.1.1",
+    version="0.1.2",
     description='Class to build database relationship for RPA',
     author='Ben-Hur P. B. Santos',
     author_email='botlorien@gmail.com',

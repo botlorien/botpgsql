@@ -8,12 +8,12 @@ TIMEOUT = 3
 
 class BotApp:
 
-    def __init__(self):
+    def __init__(self, database: str):
         """
         Initialize the BotApp object.
 
         """
-        self.bot = BotTable()
+        self.bot = BotTable(database)
         self.bot_name = "My_Bot_Name"  # Provide bot name
         self.bot_description = "This bot does XYZ tasks."  # Provide bot description
         self.bot_version = "1.0.0"  # Provide bot version MAJOR.MINOR.PATCH

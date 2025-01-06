@@ -740,12 +740,12 @@ class BotsDatabase:
 
 class TableBots(BotsDatabase):
 
-    def __init__(self, ):
+    def __init__(self, database: str):
         """
         Initialize the TableBots object.
 
         """
-        super().__init__()
+        super().__init__(database)
         self.bot_id = None
         self.bot_name = None
         self.bot_description = None
@@ -844,12 +844,12 @@ class TableBots(BotsDatabase):
 
 class TaskTable(BotsDatabase):
 
-    def __init__(self):
+    def __init__(self, database: str):
         """
         Initialize the TaskTable object.
 
         """
-        super().__init__()
+        super().__init__(database)
         self.task_id = None
         self.bot_id = None
         self.task_name = None
@@ -961,12 +961,12 @@ class TaskTable(BotsDatabase):
 
 class TaskResults(BotsDatabase):
 
-    def __init__(self):
+    def __init__(self, database: str):
         """
         Initialize the TaskResults object.
 
         """
-        super().__init__()
+        super().__init__(database)
         self.result_id = None
         self.task_id = None
         self.pc_path = None
@@ -1165,14 +1165,14 @@ class TaskResults(BotsDatabase):
 
 class BotTable:
 
-    def __init__(self):
+    def __init__(self, database: str):
         """
         Initialize the BotTable object.
 
         """
-        self.table_bot = TableBots()
-        self.task_table = TaskTable()
-        self.task_result = TaskResults()
+        self.table_bot = TableBots(database)
+        self.task_table = TaskTable(database)
+        self.task_result = TaskResults(database)
 
     # register bot
     def register_bot(self, bot_name: str, bot_description: str):

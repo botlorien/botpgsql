@@ -733,8 +733,7 @@ class BotsDatabase:
             logging.exception(e)
             invalid_authentication = True
 
-        if credentials[
-            1] != database or invalid_authentication:
+        if credentials['DBNAME'] != database or invalid_authentication:
             raise WrongBotDatabase
 
 

@@ -15,7 +15,7 @@ BOTPGSQL é uma ferramenta Python projetada para simplificar a interação com b
 
 ## Instalação
 
-1. Clone o repositório:
+1. Instale o pacote:
    ```bash
    pip install botpgsql
    ```

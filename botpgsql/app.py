@@ -1,6 +1,6 @@
 import logging
 from functools import wraps
-from database import BotTable
+from botpgsql.database import BotTable
 from botpgsql.decorators import time_out
 
 TIMEOUT = 3

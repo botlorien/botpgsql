@@ -53,7 +53,7 @@ class PostgresqlConnection:
 
     def _load_credentials(self):
         self.credentials = {
-            key: os.getenv(f"{self.prefix_env}_{key}_{self.database}")
+            key: os.getenv(f"{self.prefix_env}_{key}_{self.database.upper()}")
             for key in self.credentials
         }
         if params := [key for key in self.credentials
@@ -70,7 +70,7 @@ class PostgresqlConnection:
                 value = input(f"Informe o(a) {param} "
                               f"para ({self.prefix_env}): ")
             self.set_persistent_env_var(
-                f"{self.prefix_env}_{param}_{self.database}".upper(),
+                f"{self.prefix_env}_{param}_{self.database.upper()}".upper(),
                 value
             )
             self.credentials[param] = value

@@ -1,4 +1,5 @@
 import re
+import io
 import os
 import time
 import string
@@ -7,6 +8,7 @@ import logging
 import platform
 import psycopg2
 import subprocess
+import pandas as pd
 from datetime import datetime
 from botpgsql.exceptions import (
     ValuesNotInitiated,
@@ -53,7 +55,7 @@ class PostgresqlConnection:
 
     def _load_credentials(self):
         self.credentials = {
-            key: os.getenv(f"{self.prefix_env}_{key}_{self.database}")
+            key: os.getenv(f"{self.prefix_env}_{key}_{self.database.upper()}")
             for key in self.credentials
         }
         if params := [key for key in self.credentials
@@ -64,13 +66,13 @@ class PostgresqlConnection:
         for param in list_params:
             if param.lower() in ("senha", "password"):
                 value = getpass.getpass(
-                    f"Informe a Senha para" f" ({self.prefix_env}): "
+                    f"Informe a Senha para" f" ({self.prefix_env}_{self.database.upper()}): "
                 )
             else:
                 value = input(f"Informe o(a) {param} "
-                              f"para ({self.prefix_env}): ")
+                              f"para ({self.prefix_env}_{self.database.upper()}): ")
             self.set_persistent_env_var(
-                f"{self.prefix_env}_{param}_{self.database}".upper(),
+                f"{self.prefix_env}_{param}_{self.database.upper()}".upper(),
                 value
             )
             self.credentials[param] = value
@@ -135,24 +137,24 @@ class PostgresqlConnection:
         """
         Handle the PostgreSQL database connection and execute a function.
 
-        This method establishes a connection to the PostgreSQL database, 
+        This method establishes a connection to the PostgreSQL database,
         executes the specified function,
-        commits the changes, and handles any errors that occur during the 
+        commits the changes, and handles any errors that occur during the
         connection.
 
         :param func: The function to execute.
         :type func: function
         :param args: Positional arguments to pass to the function.
         :param kwargs: Keyword arguments to pass to the function.
-        :param time_out: The timeout duration for establishing the connection, 
+        :param time_out: The timeout duration for establishing the connection,
         defaults to 20 seconds.
         :type time_out: int, optional
-        :param raise_exception: Whether to raise an exception on connection 
+        :param raise_exception: Whether to raise an exception on connection
         failure, defaults to True.
         :type raise_exception: bool, optional
         :return: The result of the executed function.
         :rtype: any
-        :raises ConnectionFail: If the connection fails and raise_exception is 
+        :raises ConnectionFail: If the connection fails and raise_exception is
         True.
         """
         time_out = self.time_out_operations if 'time_out' not in kwargs else kwargs.pop('time_out')
@@ -316,16 +318,16 @@ class Postgresql(PostgresqlConnection):
             id_column: bool = True
             ):
         """
-        Generate the column types for a PostgreSQL table based on a Pandas 
+        Generate the column types for a PostgreSQL table based on a Pandas
         DataFrame.
 
 
         :param table: The DataFrame containing the table data.
         :type table: pandas.DataFrame
-        :param dtypes_columns: Optional dictionary specifying custom column 
+        :param dtypes_columns: Optional dictionary specifying custom column
         types for specific columns.
         :type dtypes_columns: dict, optional
-        :param match_partial: A flag to enable search partial name columns to 
+        :param match_partial: A flag to enable search partial name columns to
         match dtypes_columns keys.
         :type match_partial: bool, optional
         :param id_column: A flag to create the column id.
@@ -384,11 +386,17 @@ class Postgresql(PostgresqlConnection):
         # turn the list into a string
         var_linha = ' ,'.join(lista_var_linha)
 
-        # generate a list o list query values from the table to be inserted on database
-        table_list = list(
-            map(lambda lista: tuple(list(
-                map(lambda vl: str(vl).replace("'", "''") if (str(vl) != 'NULL') else None, lista))),
-                table.values.tolist()))
+        # # generate a list o list query values from the table to be inserted on database
+        # table_list = list(
+        #     map(lambda lista: tuple(list(
+        #         map(lambda vl: str(vl).replace("'", "''") if (str(vl) != 'NULL') else None, lista))),
+        #         table.values.tolist()))
+
+        # 🔥 Otimização com `.applymap()`
+        df_clean = table.map(lambda vl: None if vl == 'NULL' else str(vl).replace("'", "''"))
+
+        # Converter para lista de tuplas rapidamente
+        table_list = list(df_clean.itertuples(index=False, name=None))
 
         # SQL comand to insert many
         sql_insert = f"INSERT INTO {table_name}({columns_postgre}) VALUES ({var_linha});"
@@ -408,6 +416,28 @@ class Postgresql(PostgresqlConnection):
         """
         self.handle_connection(self._insert_table_db, table, table_name, columns_postgre)
 
+    def _insert_by_copy(self, buffer, table_name, columns_postgre, *args, **kwargs):
+        sep = kwargs.get('sep', ';')
+        columns = columns_postgre.replace('"', '').split(', ')
+        self.cursor.copy_from(buffer, table_name, columns=columns, sep=sep, null='NULL')
+
+    def insert_by_copy(self, buffer, table_name, columns_postgre, *args, **kwargs):
+        self.handle_connection(self._insert_by_copy, buffer, table_name, columns_postgre, *args, **kwargs)
+
+    def to_buffer_io(self, df: pd.DataFrame, **kwargs):
+        # Criar um buffer de memória
+        buffer = io.StringIO()
+
+        # Adequando valores NULL para None
+        df = df.replace('NULL', None)
+        # Escrever o DataFrame no buffer como um CSV (separado por tabulação "\t" para COPY)
+        sep = kwargs.get('sep',';')
+        df.to_csv(buffer, index=False, header=False, sep=sep, na_rep='NULL')
+
+        # Retornar o ponteiro do buffer para o início (necessário antes de usar no PostgreSQL)
+        buffer.seek(0)
+        return buffer
+
     def to_postgresql(
             self,
             table,
@@ -415,7 +445,10 @@ class Postgresql(PostgresqlConnection):
             call_procedure: str = '',
             dtypes_columns=None,
             match_partial: bool = False,
-            id_column: bool = True
+            id_column: bool = True,
+            by_copy: bool = True,
+            *args,
+            **kwargs
             ):
         """
         Export a table to a PostgreSQL database.
@@ -443,7 +476,11 @@ class Postgresql(PostgresqlConnection):
         )
         self.create_table(table_name, postgres_columns)
         # postgres_columns = self.select_columns(table_name, id_column)
-        self.insert_table_db(table, table_name, columns)
+        if by_copy:
+            logging.info('...Inserting by COPY FROM BUFFER...')
+            self.insert_by_copy(self.to_buffer_io(table, **kwargs), table_name, columns, *args,kwargs)
+        else:
+            self.insert_table_db(table, table_name, columns)
 
         if call_procedure is not None and len(call_procedure) > 0:
             self.call_procedure(call_procedure)

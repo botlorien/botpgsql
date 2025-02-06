@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="botpgsql",
-    version="0.1.3",
+    version="0.2.4",
     description='Class to build database relationship for RPA',
     author='Ben-Hur P. B. Santos',
     author_email='botlorien@gmail.com',
@@ -23,6 +23,7 @@ setup(
     python_requires='>=3.10',  # Versão mínima do Python
     install_requires=[
         'psycopg2-binary',
+        'pandas'
         ],
     )
 # pip install setuptools

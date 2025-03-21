@@ -478,7 +478,7 @@ class Postgresql(PostgresqlConnection):
         # postgres_columns = self.select_columns(table_name, id_column)
         if by_copy:
             logging.info('...Inserting by COPY FROM BUFFER...')
-            self.insert_by_copy(self.to_buffer_io(table, **kwargs), table_name, columns, *args,kwargs)
+            self.insert_by_copy(self.to_buffer_io(table, **kwargs), table_name, columns, *args, **kwargs)
         else:
             self.insert_table_db(table, table_name, columns)
 

@@ -177,7 +177,7 @@ class PostgresqlConnection:
             finally:
                 self.close()
             contador_time_out += 1
-        if contador_time_out >= time_out and raise_exception:
+        if error and raise_exception:
             raise error
         return ret
 
